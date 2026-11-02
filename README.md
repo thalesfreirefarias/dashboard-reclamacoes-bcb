@@ -1,5 +1,6 @@
 # 📊 Dashboard de Reclamações Bancárias — BCB
 
+
 Projeto de análise de reclamações bancárias entre 2017 e 2026, desenvolvido com React, TypeScript e dados do Banco Central.
 
 ## 📅 Dia 1 — Configuração do ambiente

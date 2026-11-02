@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { indicadores, lerCsv } from './lib/reclamacoes'
-import type { Reclamacao } from './lib/reclamacoes'
+import type { AnoSelecionado, Reclamacao } from './lib/reclamacoes'
+import { ReclamacoesTrimestrais } from './components/ReclamacoesTrimestrais'
+import { RankingInstituicoes } from './components/RankingInstituicoes'
+import { EvolucaoHistorica } from './components/EvolucaoHistorica'
 import './App.css'
 
 const numero = new Intl.NumberFormat('pt-BR')
@@ -11,7 +14,7 @@ const periodos = (valores: number[]) => valores.map((valor) => `${valor}º`).joi
 
 function App() {
   const [dados, setDados] = useState<Reclamacao[]>([])
-  const [ano, setAno] = useState(2025)
+  const [ano, setAno] = useState<AnoSelecionado>(2025)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
   const [tentativa, setTentativa] = useState(0)
@@ -39,6 +42,8 @@ function App() {
   }, [tentativa])
 
   const anos = [...new Set(dados.map((registro) => registro.ano))].sort((a, b) => a - b)
+  const todosOsAnos = ano === 'todos'
+  const periodoSelecionado = todosOsAnos ? 'Todos os anos (2017–2026)' : String(ano)
   const resumo = indicadores(dados, ano)
   const disponivel = !carregando && !erro
 
@@ -53,7 +58,8 @@ function App() {
       <section className="toolbar" aria-label="Período de análise">
         <div><h2>Visão geral</h2><p>Indicadores agregados do período disponível.</p></div>
         <label htmlFor="ano">Ano de referência
-          <select id="ano" value={ano} disabled={!disponivel} onChange={(evento) => setAno(Number(evento.target.value))}>
+          <select id="ano" value={ano} disabled={!disponivel} onChange={(evento) => setAno(evento.target.value === 'todos' ? 'todos' : Number(evento.target.value))}>
+            <option value="todos">Todos os anos (2017–2026)</option>
             {(anos.length ? anos : [2025]).map((opcao) => <option key={opcao} value={opcao}>{opcao}</option>)}
           </select>
         </label>
@@ -64,21 +70,25 @@ function App() {
         setErro(''); setCarregando(true); setTentativa((valor) => valor + 1)
       }}>Tentar novamente</button></div>}
 
-      {disponivel && <section aria-label={`Indicadores de ${ano}`} aria-live="polite">
-        <p className="coverage">{ano} · Trimestres: {periodos(resumo.trimestres)} · {numero.format(resumo.registros)} registros
-          {resumo.trimestres.length < 4 && <span className="badge">Cobertura parcial</span>}</p>
+      {disponivel && <section aria-label={`Indicadores de ${periodoSelecionado}`} aria-live="polite">
+        <p className="coverage">{periodoSelecionado} · {todosOsAnos ? 'Histórico acumulado disponível' : `Trimestres: ${periodos(resumo.trimestres)}`} · {numero.format(resumo.registros)} registros
+          {(todosOsAnos || resumo.trimestres.length < 4) && <span className="badge">Cobertura parcial</span>}</p>
         <div className="metrics">
           <article className="metric"><h3>Total de reclamações</h3><p className="value">{formatar(resumo.total)}</p><p>Soma das reclamações no período.</p></article>
           <article className="metric"><h3>Reclamações procedentes</h3><p className="value">{formatar(resumo.procedentes)}</p><p>Soma das reclamações procedentes.</p></article>
           <article className="metric"><h3>Taxa de procedência</h3><p className="value">{formatarTaxa(resumo.taxa)}</p><p>Procedentes ÷ total de reclamações × 100.</p></article>
           <article className="metric"><h3>Variação anual de procedentes</h3><p className="value">{resumo.variacao !== null && resumo.variacao > 0 ? '+' : ''}{formatarTaxa(resumo.variacao)}</p>
-            <p>{resumo.motivo || `Trimestres ${periodos(resumo.comuns)} de ${ano} e ${ano - 1}.`}</p>
+            <p>{resumo.motivo || `Trimestres ${periodos(resumo.comuns)} de ${ano} e ${ano === 'todos' ? '' : ano - 1}.`}</p>
           </article>
         </div>
         {(ano === 2024 || ano === 2025) && <p className="context">A comparação {ano} × {ano - 1} envolve 2024, ano de mudança metodológica. O resultado é descritivo e pode refletir alterações de estrutura e cobertura.</p>}
         {(resumo.total === null || resumo.procedentes === null) && <p className="context">Há valores ausentes: os indicadores afetados aparecem como N/D, sem substituir ausências por zero.</p>}
         {resumo.total === 0 && <p className="context">Taxa de procedência indisponível: o total de reclamações é zero.</p>}
       </section>}
+
+      {disponivel && <EvolucaoHistorica dados={dados} />}
+      {disponivel && <RankingInstituicoes dados={dados} ano={ano} />}
+      {disponivel && <ReclamacoesTrimestrais dados={dados} ano={ano} />}
 
       <aside className="methodology" aria-labelledby="metodologia">
         <h2 id="metodologia">Como interpretar os dados</h2>

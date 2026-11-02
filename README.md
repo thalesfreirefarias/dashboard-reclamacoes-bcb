@@ -102,4 +102,51 @@ git push origin main
 
 ---
 
-**Próxima etapa:** Dia 3 — Gráficos interativos com Recharts.
+## 📅 Dia 3 — Visualização e análise de dados
+
+**O que foi implementado**
+
+Nesta etapa, ampliei a análise com a opção **Todos os anos (2017–2026)** no filtro, mantendo 2025 como seleção inicial. No histórico acumulado, os KPIs somam as reclamações totais e procedentes, e a taxa é calculada pela razão entre essas somas. A variação anual aparece como **N/D**, pois não há uma comparação anual única para o período completo.
+
+Com o Recharts, foram adicionadas três visualizações alimentadas pelo CSV real:
+
+- **Evolução histórica das reclamações:** soma das reclamações por ano, exibindo 2017 a 2026 independentemente do filtro dos KPIs.
+- **Top 10 instituições por volume de reclamações:** acompanha o filtro, agrupa pelo nome da instituição, soma os volumes e apresenta os dez maiores em barras horizontais.
+- **Reclamações totais x procedentes por trimestre:** acompanha o filtro e compara as duas séries por trimestre. Em Todos os anos, mantém cada combinação de ano e trimestre em ordem cronológica. Procedentes são um subconjunto do total; as barras ficam lado a lado, sem empilhamento.
+
+**Conceitos que comecei a explorar**
+
+Agrupar dados significa reunir registros com uma chave em comum, como ano, trimestre ou instituição. Essa ideia aparece como `groupby` no Python/Pandas e `GROUP BY` no SQL. Depois do agrupamento, a soma dos valores corresponde a `sum`/`SUM`. No dashboard, essas operações foram implementadas em TypeScript; as referências a Pandas e SQL ajudam a relacionar o raciocínio entre ferramentas.
+
+No ranking, a ordenação decrescente permite selecionar os maiores volumes após a soma, em vez de escolher apenas os maiores registros individuais. Nas séries temporais, ordenar por ano e trimestre preserva a sequência dos acontecimentos e evita misturar o mesmo trimestre de anos diferentes.
+
+Também comecei a entender melhor a escolha dos gráficos: linhas ajudam a observar a evolução no tempo; barras horizontais facilitam a leitura de nomes e posições em um ranking; barras lado a lado permitem comparar totais e procedentes sem somar duas medidas que se sobrepõem.
+
+Um cuidado importante foi representar períodos ausentes como `null`, sem inventar valores ou convertê-los em zero. O período permanece identificado no eixo, mas a série afetada fica sem barra. Interpretar os dados exige considerar a cobertura e as mudanças metodológicas antes de concluir que uma alta ou queda representa uma mudança real.
+
+**Como posso aplicar essas ideias no trabalho**
+
+Na análise de produtividade de esteiras, posso agrupar volumes por esteira e período para acompanhar entregas e identificar variações que merecem investigação. Um ranking de operações pode mostrar quais concentram mais volume, lembrando que volume absoluto não mede sozinho qualidade ou eficiência.
+
+No acompanhamento de indicadores, posso comparar o total de operações com um subconjunto, como operações concluídas ou aprovadas, e calcular a taxa pela razão entre as somas. Séries temporais também podem apoiar o acompanhamento de metas e tendências, desde que os períodos comparados tenham cobertura equivalente e definições consistentes.
+
+**Limitações da análise**
+
+- **2022:** o segundo trimestre está ausente no CSV; os totais do ano não representam quatro trimestres completos.
+- **2024:** houve mudança metodológica e estrutural. A equivalência dos conceitos entre versões ainda precisa ser validada, e os saltos da série exigem cautela.
+- **2026:** os dados são parciais, com apenas o primeiro e o segundo trimestres disponíveis; não devem ser comparados diretamente a um ano completo.
+- **Instituições:** os nomes não foram normalizados. Nomes diferentes permanecem separados, inclusive no histórico acumulado; uni-los exigiria uma regra de padronização documentada.
+
+**Reflexão sobre o aprendizado**
+
+A implementação foi realizada com auxílio do Codex. Consegui acompanhar as decisões e começar a relacionar agrupamento, soma, ordenação e visualização, mas isso ainda não significa domínio completo dos conceitos. Vou aprofundar esse aprendizado com exercícios de Python/Pandas, reproduzindo os agrupamentos, conferindo as somas e rankings e explorando o tratamento de valores e períodos ausentes.
+
+---
+
+## 📅 Dia 4 — Interatividade e refinamento (planejado)
+
+A próxima etapa será adicionar o filtro por instituição financeira, refinar o layout e a responsividade e validar os cálculos e resultados. Quero observar como os filtros afetam cada análise e praticar a interpretação dos indicadores.
+
+## 📅 Dia 5 — Publicação e apresentação (planejado)
+
+O planejamento segue com a publicação do dashboard na Vercel, a atualização do README com imagem e link, a revisão do repositório no GitHub e a apresentação do projeto no LinkedIn.

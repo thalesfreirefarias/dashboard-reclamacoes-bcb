@@ -1,153 +1,261 @@
-# 📊 Dashboard de Reclamações Bancárias — BCB
+# Dashboard de Reclamações Bancárias — BCB
 
+Projeto de portfólio em Dados/BI que transforma uma base histórica de reclamações bancárias em indicadores e visualizações interativas. A aplicação permite explorar volumes, procedência e evolução temporal, com filtros por ano e instituição financeira.
 
-Projeto de análise de reclamações bancárias entre 2017 e 2026, desenvolvido com React, TypeScript e dados do Banco Central.
+**[Acessar o dashboard publicado](https://dashboard-reclamacoes-bcb.vercel.app/)**
 
-## 📅 Dia 1 — Configuração do ambiente
+## Apresentação e objetivo analítico
 
-**Comandos utilizados:**
+O objetivo é apoiar a exploração de três perguntas: como o volume de reclamações varia ao longo do tempo, quais instituições concentram os maiores volumes e qual parcela das reclamações é procedente no período selecionado.
 
-```bash
-node -v
-npm -v
-git clone https://github.com/thalesfreirefarias/dashboard-reclamacoes-bcb.git
-cd dashboard-reclamacoes-bcb
-npm create vite@latest dashboard -- --template react-ts
+O projeto reúne validação de dados, agregações, definição de KPIs e comunicação visual. Esses procedimentos também se aplicam a análises de produtividade de esteiras, concentração de operações e acompanhamento de indicadores operacionais. O ranking apresentado mede volume absoluto; não constitui uma avaliação isolada da qualidade de uma instituição.
+
+## Prévia visual
+
+As imagens abaixo são capturas reais do [dashboard publicado](https://dashboard-reclamacoes-bcb.vercel.app/), realizadas em 2 de novembro de 2026. O ranking e a comparação trimestral mostram **2025, com todas as instituições**; a evolução histórica sempre apresenta a base completa.
+
+![Gráfico de linhas com o total anual de reclamações entre 2017 e 2026](docs/imagens/evolucao-historica.png)
+
+*Evolução histórica: visão geral dos totais anuais, com observações sobre cobertura e mudanças metodológicas.*
+
+![Ranking de dez instituições por volume de reclamações em 2025, em barras horizontais](docs/imagens/ranking-instituicoes.png)
+
+*Ranking: dez maiores volumes de reclamações em 2025, sem unificação automática de nomes.*
+
+![Comparação entre reclamações totais e procedentes nos quatro trimestres de 2025](docs/imagens/comparacao-trimestral.png)
+
+*Comparação trimestral: barras lado a lado para o total de reclamações e seu subconjunto de reclamações procedentes.*
+
+## Funcionalidades e indicadores
+
+- Filtro anual de 2017 a 2026 e opção **Todos os anos (2017–2026)**; seleção inicial em **2025**.
+- Filtro por instituição financeira, incluindo **Todas as instituições**, combinado ao filtro anual.
+- Quatro KPIs, ranking e comparação trimestral atualizados pelos filtros.
+- Evolução histórica independente dos dois filtros, mantendo a visão geral completa.
+- Números em pt-BR, tooltips, legenda e interface responsiva; gráficos extensos têm rolagem horizontal em telas menores.
+- Estados de carregamento, erro com nova tentativa e ausência de registros.
+
+| Indicador | Fórmula | Regra de interpretação |
+| --- | --- | --- |
+| Total de reclamações | `Σ total_reclamacao` | Soma dos registros do período e da instituição selecionados. |
+| Reclamações procedentes | `Σ procedentes` | Subconjunto do total, não reclamações não procedentes. |
+| Taxa de procedência | `100 × Σ procedentes / Σ total_reclamacao` | Razão entre somas; não é a média simples de percentuais. |
+| Variação anual de procedentes | `100 × (P_atual / P_anterior − 1)` | Ambos os valores usam os mesmos trimestres disponíveis nos dois anos, para a mesma seleção de instituição. |
+
+Na última fórmula, `P_atual` e `P_anterior` representam as somas de procedentes nos trimestres comuns. Em 2026, a comparação usa o primeiro semestre de 2025. Na comparação de 2023 com 2022, considera somente o 1º, 3º e 4º trimestres. Os outros três KPIs continuam usando toda a cobertura disponível no ano selecionado.
+
+No histórico acumulado, os três primeiros KPIs usam toda a seleção, mas a variação anual é **N/D**, pois não existe uma comparação anual única. Ausência de registros, valores ausentes nas medidas necessárias, falta de trimestres equivalentes ou denominador zero também tornam o cálculo afetado indisponível.
+
+## Fonte, período e estrutura dos dados
+
+A referência é o [Ranking de Reclamações do Banco Central do Brasil](https://www.bcb.gov.br/meubc/rankingreclamacoes). A aplicação utiliza a base consolidada [reclamacoes_historico.csv](dashboard/public/data/reclamacoes_historico.csv), incluída no repositório; não consulta o BCB em tempo real. O histórico de preparação da base foi associado ao projeto [Churn Bancário Brasil](https://github.com/thalesfreirefarias/churn-bancario-brasil); a rotina de preparação não faz parte desta aplicação.
+
+O arquivo atual contém **5.060 registros**, **556 nomes distintos de instituições** e referências de **2017 ao 2º trimestre de 2026**. Cada registro corresponde à combinação de ano, trimestre e nome de instituição ou conglomerado. Nomes distintos não equivalem necessariamente a entidades econômicas distintas ao longo do tempo.
+
+| Campo no CSV | Tipo após leitura | Descrição |
+| --- | --- | --- |
+| `ano` | Número inteiro | Ano de referência. |
+| `trimestre` | Número inteiro de 1 a 4 | O texto original, como `1º`, é convertido para ordenação. |
+| `instituicao` | Texto | Nome informado na base. |
+| `procedentes` | Inteiro ou `null` | Quantidade de reclamações procedentes. |
+| `total_reclamacao` | Inteiro ou `null` | Total de reclamações; no código, `totalReclamacao`. |
+| `total_cliente` | Inteiro ou `null` | Base de clientes; no código, `totalCliente`. Não compõe os KPIs atuais. |
+| `estrutura` | Categoria | `antiga`, `nova_1` ou `nova_2`. |
+
+A estrutura `antiga` vai até o 1º trimestre de 2024; `nova_1` aparece no 2º trimestre de 2024; `nova_2`, do 3º trimestre de 2024 em diante. O CSV já reúne essas versões nas mesmas colunas, mas isso não comprova equivalência metodológica dos conceitos originais.
+
+O parser verifica colunas obrigatórias, números inteiros não negativos, identificação dos períodos, chaves duplicadas e casos em que procedentes excedem o total. O arquivo contém 16 ausências em `total_cliente`, preservadas como `null`.
+
+## Os três gráficos
+
+### Evolução histórica das reclamações
+
+Gráfico de linhas com a soma de `total_reclamacao` por ano. Exibe 2017 a 2026 independentemente dos filtros, para manter uma referência geral da série. A escolha de linhas favorece a leitura temporal, mas as mudanças de cobertura impedem interpretar toda oscilação como crescimento ou queda real.
+
+### Top 10 instituições por volume de reclamações
+
+Barras horizontais com agrupamento pelo nome de `instituicao`, soma das reclamações e ordenação decrescente. São exibidos os dez maiores totais da seleção; empates são ordenados pelo nome. Nomes diferentes permanecem separados.
+
+Com uma instituição selecionada, o gráfico mostra somente sua barra e explica a restrição do filtro. Grupos com valores ausentes em `total_reclamacao` são excluídos da classificação com aviso, evitando apresentar somas parciais como totais completos.
+
+### Reclamações totais x procedentes por trimestre
+
+Barras agrupadas, com duas cores e legenda. Para um ano, soma as medidas por trimestre; em **Todos os anos**, agrega por ano e trimestre em ordem cronológica.
+
+As séries não são empilhadas: procedentes já estão contidas no total. No histórico completo, o eixo vai do primeiro ao último período observado na seleção, mantendo lacunas internas como `null`. Para um ano individual, os quatro trimestres ficam identificados, mesmo quando não há dados para todos.
+
+## Tecnologias
+
+| Tecnologia | Uso no projeto |
+| --- | --- |
+| React 19 | Interface, estado dos filtros e composição de componentes. |
+| TypeScript 5.9 | Tipagem dos registros, filtros e funções de cálculo. |
+| Vite 8 | Servidor de desenvolvimento e build de produção. |
+| Papa Parse 5 | Leitura do CSV com cabeçalho e tratamento de erros. |
+| Recharts 3 | Gráficos responsivos, eixos, legendas e tooltips. |
+| CSS | Layout, identidade visual e adaptação a telas menores. |
+| Node.js / `node:test` | Execução dos testes automatizados. |
+| ESLint | Análise estática de código e regras para React. |
+| Git, GitHub e Vercel | Versionamento, repositório e hospedagem. |
+
+As versões e os comandos estão definidos em [dashboard/package.json](dashboard/package.json), com resolução de dependências em `dashboard/package-lock.json`. Python/Pandas e SQL são referências para aprofundamento das análises; não são dependências de execução desta aplicação.
+
+## Arquitetura e estrutura de pastas
+
+A aplicação é um front-end estático, sem API própria ou banco de dados. O navegador carrega o CSV por `fetch`, o Papa Parse faz a leitura, as funções de domínio validam e agregam os registros e o React atualiza KPIs e gráficos. As visualizações são carregadas por importação dinâmica com `lazy` e `Suspense`, separando os gráficos do bundle inicial.
+
+```text
+dashboard-reclamacoes-bcb/
+├── README.md
+├── docs/imagens/                         # Capturas reais da versão publicada
+└── dashboard/                           # Raiz da aplicação e dos comandos npm
+    ├── public/data/reclamacoes_historico.csv
+    ├── src/
+    │   ├── main.tsx                     # Inicialização do React
+    │   ├── App.tsx                      # Carregamento, filtros e KPIs
+    │   ├── App.css / index.css          # Estilos
+    │   ├── lib/reclamacoes.ts           # Parser, validações e agregações
+    │   └── components/
+    │       ├── Visualizacoes.tsx
+    │       ├── EvolucaoHistorica.tsx
+    │       ├── RankingInstituicoes.tsx
+    │       └── ReclamacoesTrimestrais.tsx
+    ├── tests/reclamacoes.test.mjs
+    ├── package.json / package-lock.json
+    ├── vite.config.ts
+    └── vercel.json
 ```
 
-**Correção de dependências:**
+A árvore destaca os arquivos relevantes à aplicação. Eventuais arquivos npm na raiz do repositório não substituem o pacote de `dashboard`; execute os comandos de instalação e desenvolvimento dentro dessa pasta.
+
+### Exemplos reais do código
+
+Em [src/lib/reclamacoes.ts](dashboard/src/lib/reclamacoes.ts), a leitura mantém o cabeçalho e ignora linhas vazias:
+
+```typescript
+const resultado = Papa.parse<Record<string, string>>(texto, {
+  header: true, skipEmptyLines: 'greedy', transformHeader: (nome) => nome.trim(),
+})
+```
+
+Depois dessa leitura, o código verifica os erros do parser e valida cada registro. A função de soma abaixo distingue ausência de informação de zero real:
+
+```typescript
+export function somar(registros: Reclamacao[], campo: 'procedentes' | 'totalReclamacao'): number | null {
+  if (!registros.length || registros.some((registro) => registro[campo] === null)) return null
+  return registros.reduce((soma, registro) => soma + (registro[campo] as number), 0)
+}
+```
+
+Se qualquer registro do grupo tiver a medida ausente, o agregado correspondente fica indisponível. O zero inicial do `reduce` é apenas o acumulador da soma, após a checagem; não substitui valores ausentes.
+
+Em [EvolucaoHistorica.tsx](dashboard/src/components/EvolucaoHistorica.tsx), o agrupamento anual é expresso pela seleção dos registros de cada ano seguida da soma:
+
+```typescript
+const historico = anos.map((ano) => ({
+  ano,
+  total: somar(dados.filter((registro) => registro.ano === ano), 'totalReclamacao'),
+}))
+```
+
+Essa lógica se relaciona a `groupby` e `sum` no Pandas, ou `GROUP BY` e `SUM` no SQL. Aqui, ela é executada em TypeScript sobre os registros carregados do CSV.
+
+## Instalação e execução local
+
+Use **Node.js 24.x**, versão utilizada na validação do projeto, npm e Git. O teste importa diretamente um arquivo TypeScript usando o suporte nativo do Node; versões antigas podem não executar esse comando corretamente.
 
 ```bash
+git clone https://github.com/thalesfreirefarias/dashboard-reclamacoes-bcb.git
+cd dashboard-reclamacoes-bcb
 cd dashboard
-npm pkg set "devDependencies.typescript=~5.9.3"
 npm install
 npm run dev
 ```
 
-**O que aprendi:**
+Abra a URL exibida pelo Vite no terminal, normalmente `http://localhost:5173`. Se a porta estiver ocupada, o servidor informa outra. O CSV já está em `public/data`; não é necessário configurar credenciais, banco de dados ou uma conta de IA.
 
-- `node` e `npm`: executar ferramentas JavaScript e gerenciar bibliotecas.
-- `git clone`: copiar um repositório do GitHub.
-- `cd`: navegar entre pastas.
-- `npm run dev`: iniciar a aplicação localmente.
-- React: construir interfaces.
-- TypeScript: trabalhar com tipos de dados.
+O código desenvolvido com auxílio do Codex é executado como qualquer aplicação React: clone o repositório, instale as dependências e inicie o servidor. O Codex não é necessário em tempo de execução. Para adaptar o projeto, edite os arquivos locais, confira os resultados na interface e execute as validações abaixo.
 
----
+## Testes e verificações
 
-## 📅 Dia 2 — Importação do CSV e KPIs
-
-**1. Copiar a base de dados**
+Na pasta `dashboard`:
 
 ```bash
-mkdir -p dashboard/public/data
-cp ~/churn-bancario-brasil/data/raw/reclamacoes_historico.csv dashboard/public/data/
-```
-
-**2. Prompt utilizado para análise da base**
-
-Solicitar ao Codex que examine o CSV antes de construir o dashboard, identificando colunas, tipos de dados, registros ausentes, duplicidades, períodos disponíveis e possíveis problemas metodológicos.
-
-**3. Prompt utilizado para implementar os indicadores**
-
-> Implemente o Dia 2 do dashboard de reclamações bancárias do Banco Central. Trabalhe apenas dentro da pasta dashboard e utilize o arquivo public/data/reclamacoes_historico.csv, que contém dados de 2017 a 2026.
->
-> Construa uma página React + TypeScript responsiva com leitura do CSV usando Papa Parse, filtro anual de 2017 a 2026 (2025 como padrão) e quatro indicadores dinâmicos:
->
-> - Total de reclamações.
-> - Reclamações procedentes.
-> - Taxa de procedência.
-> - Variação percentual anual de procedentes.
->
-> Compare apenas trimestres equivalentes. Sinalize o trimestre ausente de 2022, as mudanças metodológicas de 2024 e os dados parciais de 2026.
->
-> Não crie gráficos ainda, não altere o README e não realize commits. Execute `npm run build` e `npm run lint` ao finalizar.
-
-**4. Fórmulas aprendidas**
-
-```typescript
-const total = dados.reduce(
-  (soma, linha) => soma + linha.total_reclamacao, 0
-);
-
-const taxa = total > 0
-  ? (procedentes / total) * 100
-  : null;
-```
-
-- `reduce()`: soma valores de vários registros.
-- Taxa de procedência: reclamações procedentes ÷ reclamações totais × 100.
-- Variação anual: `(valor atual / valor anterior - 1) × 100`.
-
-*Os trechos acima são exemplos simplificados para revisão.*
-
-**5. Testes e GitHub**
-
-```bash
-npm run build
+npm run test
 npm run lint
-git add dashboard
-git commit -m "Implementa indicadores e filtro anual do dashboard"
+npm run build
+```
+
+| Comando | O que verifica |
+| --- | --- |
+| `npm run test` | Executa sete testes com `node:test`, sobre o CSV real e cenários de borda. |
+| `npm run lint` | Executa o ESLint; não substitui testes de comportamento. |
+| `npm run build` | Verifica o TypeScript e gera a aplicação estática em `dist`. |
+
+Os testes cobrem a estrutura do CSV, 6.127 combinações de filtros, coerência entre agregações, comparação anual com trimestres comuns, nomes distintos, ausência de registros, valores ausentes, base zero, lacunas temporais e rejeição de dados inválidos ou duplicados. Não constituem uma auditoria da metodologia original do BCB nem uma suíte automatizada de interface.
+
+Para inspecionar o build localmente, execute `npm run preview` depois do build e abra a URL informada. Mudanças de layout também devem ser conferidas em telas menores e com nomes longos de instituições.
+
+## Como salvar e publicar alterações no GitHub
+
+Após revisar as mudanças e executar as verificações, retorne da pasta `dashboard` para a raiz do repositório:
+
+```bash
+cd ..
+git status
+git diff
+git add README.md docs/imagens dashboard
+git diff --cached
+git commit -m "Atualiza dashboard e documentação do projeto"
 git push origin main
 ```
 
-**O que aprendi:**
+O exemplo considera a branch `main` e o remoto `origin` deste repositório. O `git add` prepara os arquivos, o `git commit` registra a versão local e o `git push` envia os commits ao GitHub, mediante autenticação. Revise a seleção antes do commit; dependências instaladas e artefatos de build não devem ser versionados.
 
-- Importar e validar dados de um CSV.
-- Criar indicadores de desempenho (KPIs).
-- Comparar períodos equivalentes.
-- Testar o código antes de publicar.
-- Registrar e enviar alterações com Git.
+Enviar ao GitHub e publicar um site são ações distintas. Se houver integração de deploy automático com a Vercel, um push para a branch configurada poderá iniciar uma publicação.
 
-**Resultado:** dashboard com quatro KPIs, filtro anual e 5.060 registros históricos.
+A configuração da aplicação para Vercel é **Root Directory: `dashboard`**, **Build Command: `npm run build`** e **Output Directory: `dist`**. O arquivo [vercel.json](dashboard/vercel.json) declara o framework Vite, o comando e a saída; a raiz deve ser selecionada no painel da hospedagem.
 
----
+## Metodologia e limitações
 
-## 📅 Dia 3 — Visualização e análise de dados
+| Tema | Cuidado necessário |
+| --- | --- |
+| 2022 sem Q2 | O 2º trimestre está ausente. O total anual cobre apenas o 1º, 3º e 4º trimestres; não é um ano completo. |
+| Mudanças em 2024 | Há três estruturas no mesmo ano. A equivalência das definições originais ainda exige validação; a comparação numérica não garante comparabilidade metodológica. |
+| 2026 parcial | Há somente Q1 e Q2. Comparar com 2025 completo distorce a interpretação; a variação anual usa os mesmos trimestres. |
+| Nomes não normalizados | Grafias e nomes diferentes ficam separados, sem conciliação de mudanças societárias ou conglomerados. |
+| Valores ausentes | São `null`, nunca zero artificial. Medidas afetadas aparecem como N/D; lacunas permanecem identificadas nas séries. |
+| Períodos equivalentes | A variação usa a interseção dos trimestres disponíveis nos dois anos. Com uma instituição selecionada, essa cobertura é verificada para o mesmo nome. |
+| Volume e clientes | O ranking não ajusta por porte ou base de clientes. `total_cliente` não deve ser somado entre trimestres como se representasse pessoas únicas. |
+| Atualização | A base é um arquivo estático versionado, sem atualização automática ou garantia de conter toda publicação posterior do BCB. |
 
-**O que foi implementado**
+Procedentes são parte do total, portanto somar as duas séries geraria dupla contagem. Da mesma forma, uma taxa agregada deve usar a razão entre somas, em vez da média simples das taxas de cada instituição.
 
-Nesta etapa, ampliei a análise com a opção **Todos os anos (2017–2026)** no filtro, mantendo 2025 como seleção inicial. No histórico acumulado, os KPIs somam as reclamações totais e procedentes, e a taxa é calculada pela razão entre essas somas. A variação anual aparece como **N/D**, pois não há uma comparação anual única para o período completo.
+Os gráficos permitem análise descritiva da cobertura disponível. Eles não demonstram causalidade, não identificam clientes únicos e não sustentam, isoladamente, uma conclusão de melhora ou piora de atendimento.
 
-Com o Recharts, foram adicionadas três visualizações alimentadas pelo CSV real:
+## Desenvolvimento com auxílio do Codex
 
-- **Evolução histórica das reclamações:** soma das reclamações por ano, exibindo 2017 a 2026 independentemente do filtro dos KPIs.
-- **Top 10 instituições por volume de reclamações:** acompanha o filtro, agrupa pelo nome da instituição, soma os volumes e apresenta os dez maiores em barras horizontais.
-- **Reclamações totais x procedentes por trimestre:** acompanha o filtro e compara as duas séries por trimestre. Em Todos os anos, mantém cada combinação de ano e trimestre em ordem cronológica. Procedentes são um subconjunto do total; as barras ficam lado a lado, sem empilhamento.
+O Codex foi utilizado como ferramenta de apoio para implementação da interface, funções de cálculo, testes, revisão e documentação. As solicitações incluíram regras explícitas sobre dados ausentes, períodos equivalentes e preservação dos nomes das instituições.
 
-**Conceitos que comecei a explorar**
+O uso da ferramenta não comprova domínio autônomo de toda a stack. O projeto registra uma experiência prática de construção e revisão assistida, com conceitos que ainda serão aprofundados em exercícios de Python/Pandas e SQL, reproduzindo agrupamentos, somas, rankings e comparações temporais. A responsabilidade pela interpretação e pela revisão das entregas continua humana.
 
-Agrupar dados significa reunir registros com uma chave em comum, como ano, trimestre ou instituição. Essa ideia aparece como `groupby` no Python/Pandas e `GROUP BY` no SQL. Depois do agrupamento, a soma dos valores corresponde a `sum`/`SUM`. No dashboard, essas operações foram implementadas em TypeScript; as referências a Pandas e SQL ajudam a relacionar o raciocínio entre ferramentas.
+## Desafios e aprendizados técnicos
 
-No ranking, a ordenação decrescente permite selecionar os maiores volumes após a soma, em vez de escolher apenas os maiores registros individuais. Nas séries temporais, ordenar por ano e trimestre preserva a sequência dos acontecimentos e evita misturar o mesmo trimestre de anos diferentes.
+- **Traduzir perguntas em indicadores:** definir numeradores, denominadores e períodos antes de escolher a visualização.
+- **Distinguir ausência de zero:** preservar lacunas e evitar totais ou taxas artificialmente reduzidos.
+- **Controlar o contexto dos filtros:** atualizar KPIs, ranking e comparação trimestral, mantendo a evolução histórica como referência geral.
+- **Organizar séries temporais:** usar ano e trimestre para manter ordem cronológica e comparação coerente.
+- **Escolher gráficos e comunicar limites:** linhas para evolução, barras horizontais para ranking e barras agrupadas para comparar total e subconjunto.
+- **Separar responsabilidades:** manter validações e agregações fora dos componentes visuais e conferir os resultados com testes independentes.
+- **Preparar a entrega:** validar o build, separar o carregamento dos gráficos e documentar comandos reproduzíveis.
 
-Também comecei a entender melhor a escolha dos gráficos: linhas ajudam a observar a evolução no tempo; barras horizontais facilitam a leitura de nomes e posições em um ranking; barras lado a lado permitem comparar totais e procedentes sem somar duas medidas que se sobrepõem.
+Esses aprendizados são transferíveis a painéis de operações e BI, mas exigem prática adicional e validação no contexto de cada negócio.
 
-Um cuidado importante foi representar períodos ausentes como `null`, sem inventar valores ou convertê-los em zero. O período permanece identificado no eixo, mas a série afetada fica sem barra. Interpretar os dados exige considerar a cobertura e as mudanças metodológicas antes de concluir que uma alta ou queda representa uma mudança real.
+## Possíveis melhorias
 
-**Como posso aplicar essas ideias no trabalho**
-
-Na análise de produtividade de esteiras, posso agrupar volumes por esteira e período para acompanhar entregas e identificar variações que merecem investigação. Um ranking de operações pode mostrar quais concentram mais volume, lembrando que volume absoluto não mede sozinho qualidade ou eficiência.
-
-No acompanhamento de indicadores, posso comparar o total de operações com um subconjunto, como operações concluídas ou aprovadas, e calcular a taxa pela razão entre as somas. Séries temporais também podem apoiar o acompanhamento de metas e tendências, desde que os períodos comparados tenham cobertura equivalente e definições consistentes.
-
-**Limitações da análise**
-
-- **2022:** o segundo trimestre está ausente no CSV; os totais do ano não representam quatro trimestres completos.
-- **2024:** houve mudança metodológica e estrutural. A equivalência dos conceitos entre versões ainda precisa ser validada, e os saltos da série exigem cautela.
-- **2026:** os dados são parciais, com apenas o primeiro e o segundo trimestres disponíveis; não devem ser comparados diretamente a um ano completo.
-- **Instituições:** os nomes não foram normalizados. Nomes diferentes permanecem separados, inclusive no histórico acumulado; uni-los exigiria uma regra de padronização documentada.
-
-**Reflexão sobre o aprendizado**
-
-A implementação foi realizada com auxílio do Codex. Consegui acompanhar as decisões e começar a relacionar agrupamento, soma, ordenação e visualização, mas isso ainda não significa domínio completo dos conceitos. Vou aprofundar esse aprendizado com exercícios de Python/Pandas, reproduzindo os agrupamentos, conferindo as somas e rankings e explorando o tratamento de valores e períodos ausentes.
-
----
-
-## 📅 Dia 4 — Interatividade e refinamento (planejado)
-
-A próxima etapa será adicionar o filtro por instituição financeira, refinar o layout e a responsividade e validar os cálculos e resultados. Quero observar como os filtros afetam cada análise e praticar a interpretação dos indicadores.
-
-## 📅 Dia 5 — Publicação e apresentação (planejado)
-
-O planejamento segue com a publicação do dashboard na Vercel, a atualização do README com imagem e link, a revisão do repositório no GitHub e a apresentação do projeto no LinkedIn.
+- Documentar a origem de cada arquivo e o mapeamento entre estruturas do BCB, validando a comparabilidade histórica.
+- Criar um cadastro de instituições com identificadores e regras documentadas de normalização.
+- Reproduzir as análises em notebooks de Python/Pandas e consultas SQL para aprofundamento e conferência independente.
+- Automatizar a atualização da base com verificações de qualidade e registro da data de referência.
+- Adicionar busca de instituições, exportação dos dados filtrados e alternativas tabulares acessíveis aos gráficos.
+- Ampliar testes de interface e acessibilidade, configurar integração contínua e acompanhar atualizações e alertas das dependências.

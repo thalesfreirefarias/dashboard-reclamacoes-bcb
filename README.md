@@ -1,5 +1,6 @@
 # Dashboard de Reclamações Bancárias — BCB
 
+
 Projeto de portfólio em Dados/BI que transforma uma base histórica de reclamações bancárias em indicadores e visualizações interativas. A aplicação permite explorar volumes, procedência e evolução temporal, com filtros por ano e instituição financeira.
 
 **[Acessar o dashboard publicado](https://dashboard-reclamacoes-bcb.vercel.app/)**

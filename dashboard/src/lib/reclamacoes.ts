@@ -2,6 +2,10 @@ import Papa from 'papaparse'
 
 export type AnoSelecionado = number | 'todos'
 
+export function filtrarInstituicao(dados: Reclamacao[], instituicao: string): Reclamacao[] {
+  return instituicao === '' ? dados : dados.filter((registro) => registro.instituicao === instituicao)
+}
+
 export type Estrutura = 'antiga' | 'nova_1' | 'nova_2'
 export interface Reclamacao {
   ano: number
@@ -71,7 +75,8 @@ export function indicadores(dados: Reclamacao[], ano: AnoSelecionado) {
   const atualComparavel = somar(atuais.filter((registro) => comuns.includes(registro.trimestre)), 'procedentes')
   const anteriorComparavel = somar(anteriores.filter((registro) => comuns.includes(registro.trimestre)), 'procedentes')
   let motivo = ''
-  if (ano === 'todos') motivo = 'Não há comparação anual única para o período acumulado de 2017 a 2026.'
+  if (!atuais.length) motivo = 'Não há registros para os filtros selecionados.'
+  else if (ano === 'todos') motivo = 'Não há comparação anual única para o período acumulado de 2017 a 2026.'
   else if (!anteriores.length) motivo = 'Não há dados do ano anterior para comparação.'
   else if (!comuns.length) motivo = 'Não há trimestres equivalentes nos dois anos.'
   else if (atualComparavel === null || anteriorComparavel === null) motivo = 'Há valores ausentes nos períodos comparados.'

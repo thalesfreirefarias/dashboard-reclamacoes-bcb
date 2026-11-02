@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react'
-import { indicadores, lerCsv } from './lib/reclamacoes'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { filtrarInstituicao, indicadores, lerCsv } from './lib/reclamacoes'
 import type { AnoSelecionado, Reclamacao } from './lib/reclamacoes'
-import { ReclamacoesTrimestrais } from './components/ReclamacoesTrimestrais'
-import { RankingInstituicoes } from './components/RankingInstituicoes'
-import { EvolucaoHistorica } from './components/EvolucaoHistorica'
 import './App.css'
+
+const Visualizacoes = lazy(() => import('./components/Visualizacoes'))
 
 const numero = new Intl.NumberFormat('pt-BR')
 const percentual = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -14,6 +13,7 @@ const periodos = (valores: number[]) => valores.map((valor) => `${valor}º`).joi
 
 function App() {
   const [dados, setDados] = useState<Reclamacao[]>([])
+  const [instituicao, setInstituicao] = useState('')
   const [ano, setAno] = useState<AnoSelecionado>(2025)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
@@ -44,7 +44,9 @@ function App() {
   const anos = [...new Set(dados.map((registro) => registro.ano))].sort((a, b) => a - b)
   const todosOsAnos = ano === 'todos'
   const periodoSelecionado = todosOsAnos ? 'Todos os anos (2017–2026)' : String(ano)
-  const resumo = indicadores(dados, ano)
+  const instituicoes = [...new Set(dados.map((registro) => registro.instituicao))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  const dadosInstituicao = filtrarInstituicao(dados, instituicao)
+  const resumo = indicadores(dadosInstituicao, ano)
   const disponivel = !carregando && !erro
 
   return (
@@ -55,14 +57,22 @@ function App() {
         <p className="subtitle">Acompanhe os principais indicadores das instituições financeiras, de 2017 a 2026.</p>
       </header>
 
-      <section className="toolbar" aria-label="Período de análise">
-        <div><h2>Visão geral</h2><p>Indicadores agregados do período disponível.</p></div>
+      <section className="toolbar" aria-label="Filtros de análise">
+        <div><h2>Explore os indicadores</h2><p>Combine ano e instituição. A evolução histórica mantém a visão geral completa.</p></div>
+        <div className="filters">
         <label htmlFor="ano">Ano de referência
           <select id="ano" value={ano} disabled={!disponivel} onChange={(evento) => setAno(evento.target.value === 'todos' ? 'todos' : Number(evento.target.value))}>
             <option value="todos">Todos os anos (2017–2026)</option>
             {(anos.length ? anos : [2025]).map((opcao) => <option key={opcao} value={opcao}>{opcao}</option>)}
           </select>
         </label>
+        <label htmlFor="instituicao">Instituição financeira
+          <select id="instituicao" value={instituicao} disabled={!disponivel} onChange={(evento) => setInstituicao(evento.target.value)}>
+            <option value="">Todas as instituições</option>
+            {instituicoes.map((nome) => <option key={nome} value={nome}>{nome}</option>)}
+          </select>
+        </label>
+        </div>
       </section>
 
       {carregando && <p className="status" role="status">Carregando e validando os dados…</p>}
@@ -71,7 +81,7 @@ function App() {
       }}>Tentar novamente</button></div>}
 
       {disponivel && <section aria-label={`Indicadores de ${periodoSelecionado}`} aria-live="polite">
-        <p className="coverage">{periodoSelecionado} · {todosOsAnos ? 'Histórico acumulado disponível' : `Trimestres: ${periodos(resumo.trimestres)}`} · {numero.format(resumo.registros)} registros
+        <p className="coverage">{instituicao || 'Todas as instituições'} · {periodoSelecionado} · {todosOsAnos ? 'Histórico acumulado disponível' : `Trimestres: ${periodos(resumo.trimestres) || 'nenhum disponível'}`} · {numero.format(resumo.registros)} registros
           {(todosOsAnos || resumo.trimestres.length < 4) && <span className="badge">Cobertura parcial</span>}</p>
         <div className="metrics">
           <article className="metric"><h3>Total de reclamações</h3><p className="value">{formatar(resumo.total)}</p><p>Soma das reclamações no período.</p></article>
@@ -82,13 +92,14 @@ function App() {
           </article>
         </div>
         {(ano === 2024 || ano === 2025) && <p className="context">A comparação {ano} × {ano - 1} envolve 2024, ano de mudança metodológica. O resultado é descritivo e pode refletir alterações de estrutura e cobertura.</p>}
-        {(resumo.total === null || resumo.procedentes === null) && <p className="context">Há valores ausentes: os indicadores afetados aparecem como N/D, sem substituir ausências por zero.</p>}
+        {resumo.registros === 0 && <p className="context">Não há registros para esta instituição no período selecionado. Os indicadores ficam em N/D; escolha outro ano ou todas as instituições.</p>}
+        {resumo.registros > 0 && (resumo.total === null || resumo.procedentes === null) && <p className="context">Há valores ausentes: os indicadores afetados aparecem como N/D, sem substituir ausências por zero.</p>}
         {resumo.total === 0 && <p className="context">Taxa de procedência indisponível: o total de reclamações é zero.</p>}
       </section>}
 
-      {disponivel && <EvolucaoHistorica dados={dados} />}
-      {disponivel && <RankingInstituicoes dados={dados} ano={ano} />}
-      {disponivel && <ReclamacoesTrimestrais dados={dados} ano={ano} />}
+      {disponivel && <Suspense fallback={<p className="status" role="status">Carregando visualizações…</p>}>
+        <Visualizacoes dados={dados} dadosInstituicao={dadosInstituicao} ano={ano} instituicao={instituicao} />
+      </Suspense>}
 
       <aside className="methodology" aria-labelledby="metodologia">
         <h2 id="metodologia">Como interpretar os dados</h2>
@@ -97,6 +108,7 @@ function App() {
           <li><strong>2024 — mudança metodológica.</strong> O 1º trimestre usa a estrutura antiga, o 2º usa nova_1 e o 3º e 4º usam nova_2. A equivalência dos conceitos entre estruturas ainda precisa ser validada; saltos na série não representam necessariamente crescimento real.</li>
           <li><strong>2026 — dados parciais.</strong> Apenas o 1º e o 2º trimestres estão disponíveis. A variação considera os mesmos trimestres de 2025.</li>
           <li><strong>Comparação anual.</strong> Usamos somente os trimestres presentes nos dois anos. Isso também restringe a comparação de 2023 com 2022 ao 1º, 3º e 4º trimestres; os demais cartões mantêm a cobertura do ano selecionado.</li>
+          <li><strong>Nomes de instituições.</strong> Nomes diferentes permanecem separados. Nenhuma fusão ou padronização automática é aplicada, inclusive nas comparações anuais.</li>
           <li><strong>Valores ausentes.</strong> Não são convertidos em zero. N/D indica cálculo indisponível; a taxa usa a razão entre as somas, sem média simples de percentuais.</li>
         </ul>
       </aside>

@@ -14,7 +14,7 @@ export function EvolucaoHistorica({ dados }: { dados: Reclamacao[] }) {
   return (
     <section className="history" aria-labelledby="historico-titulo" aria-describedby="historico-nota">
       <h2 id="historico-titulo">Evolução histórica das reclamações (2017–2026)</h2>
-      <p className="history-subtitle">Total de reclamações por ano · Histórico completo, independente do filtro dos indicadores.</p>
+      <p className="history-subtitle">Total de reclamações por ano · Visão geral completa: todas as instituições e todos os anos, independente dos dois filtros.</p>
       <div className="history-scroll" tabIndex={0} role="region" aria-label="Gráfico histórico; em telas pequenas, deslize horizontalmente para ver todos os anos">
         <div className="history-chart">
           <ResponsiveContainer width="100%" height="100%">
